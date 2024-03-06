@@ -1,0 +1,238 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gravity.</title>
+    <style>
+        body,
+        html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #D7D9D9!important;
+        }
+
+        button {
+            color: #ffffff;
+            background: #986AD9;
+            border: #986AD9 1px solid;
+            border-radius: 500px;
+            width: 20vw;
+            height: 20vw;
+            font-weight: 300;
+            font-size: 1.5em;
+            font-family: 'Lato';
+            cursor: pointer;
+            outline: none;
+            position: absolute;
+            left: 40vw;
+            top: 40vh;
+        }
+    </style>
+    <script src="libs/matter.js"></script>
+</head>
+
+<body>
+    <button class="vforce">gravity.</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+        const socket = io();
+
+        // module aliases
+        var Engine = Matter.Engine,
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Common = Matter.Common,
+            MouseConstraint = Matter.MouseConstraint,
+            Mouse = Matter.Mouse,
+            Composites = Matter.Composites;
+
+        // Funktion zum Aktualisieren der Mausposition auf dem aktuellen Client
+        function updateMousePosition(clientId, mouseData) {
+            console.log(`Client ${clientId} Mouse Position: x=${mouseData.x}, y=${mouseData.y}`);
+        }
+
+        function simulateMouseDown(x, y) {
+            // Löse ein mousedown-Event auf dem Fenster aus
+            var event = new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                clientX: x,
+                clientY: y
+            });
+
+            // Sende Mausklick-Event an den Server
+            socket.emit('mouseClick', { x, y });
+            window.dispatchEvent(event);
+        }
+
+        // create an engine
+        var engine = Engine.create();
+
+        // create a renderer
+        var render = Render.create({
+            element: document.body,
+            engine: engine,
+            options: {
+                wireframes: false,
+            }
+        });
+
+        // Set canvas size to fill the entire screen
+        render.canvas.width = window.innerWidth;
+        render.canvas.height = window.innerHeight;
+
+        // create two boxes and a ground
+        var ground = Bodies.rectangle(render.canvas.width / 2, render.canvas.height, render.canvas.width, 20, {
+            isStatic: true,
+            render: {
+                fillStyle: '##D7D9D9',
+                strokeStyle: '##D7D9D9',
+            }
+        });
+
+        // Create a top ground to prevent balls from flying out
+        var topGround = Bodies.rectangle(render.canvas.width / 2, 10, render.canvas.width, 20, {
+            isStatic: true,
+            render: {
+                fillStyle: '##D7D9D9',
+                strokeStyle: '##D7D9D9',
+            }
+        });
+
+        // Add barriers on the sides
+        var leftBarrier = Bodies.rectangle(0, render.canvas.height / 2, 10, render.canvas.height, {
+            isStatic: true,
+            render: {
+                fillStyle: '##D7D9D9',
+                strokeStyle: '##D7D9D9',
+            }
+        });
+        var rightBarrier = Bodies.rectangle(render.canvas.width, render.canvas.height / 2, 10, render.canvas.height, {
+            isStatic: true,
+            render: {
+                fillStyle: '##D7D9D9',
+                strokeStyle: '##D7D9D9',
+            }
+        });
+
+
+        // Array mit möglichen Farben
+        var possibleColors = ['#D9B0C6', '#D99ABC'];
+
+        var stack = Composites.stack(0, 0, 15, 10, 10, 10, function (x, y) {
+            var randomColor = possibleColors[Math.floor(Math.random() * possibleColors.length)];
+
+            return Bodies.circle(x, y, Common.random(15, 30), {
+                restitution: 0.0,
+                friction: 0.5,
+                density: 1,
+                render: {
+                    fillStyle: randomColor,
+                    strokeStyle: 'transparent',
+                    lineWidth: 2 
+                        }
+            });
+        });
+
+
+
+        // add all of the bodies to the world
+        Composite.add(engine.world, [stack, ground, topGround, leftBarrier, rightBarrier]);
+
+        // add mouse control
+        var mouse = Mouse.create(render.canvas),
+            mouseConstraint = MouseConstraint.create(engine, {
+                mouse: mouse,
+                constraint: {
+                    stiffness: 0.2,
+                    render: {
+                        visible: true,
+                   
+                    }
+                }
+            });
+
+        Composite.add(engine.world, mouseConstraint);
+
+        // keep the mouse in sync with rendering
+        render.mouse = mouse;
+
+        // run the renderer
+        Render.run(render);
+
+        // create runner
+        var runner = Runner.create();
+
+        // run the engine
+        Runner.run(runner, engine);
+
+        // Button click event
+        document.querySelector('.vforce').addEventListener('click', function () {
+            // Invert gravity on button click
+            engine.world.gravity.y *= -1;
+        });
+
+        // received a message from the server
+        socket.on("msg", msg => {
+            console.log(msg);
+        });
+
+        // received a message from another client
+        socket.on("client_msg", msg => {
+            console.log(msg);
+        });
+
+        socket.on("connect", () => {
+            socket.emit("client_msg", "Hello from the client " + socket.id);
+        });
+
+        document.addEventListener("mousemove", (event) => {
+            const mouseData = {
+                x: event.clientX,
+                y: event.clientY,
+            };
+            socket.emit("mousemove", mouseData);
+        });
+
+        // receive and apply mouse movement data from other clients
+        socket.on("mousemove", (clientsData) => {
+            for (const clientId in clientsData) {
+                const clientData = clientsData[clientId];
+                if (clientId !== socket.id) {
+                    // Aktualisiere die Mausposition auf anderen Clients
+                    updateMousePosition(clientId, clientData);
+
+                    // Simuliere einen Mausklick auf dem aktuellen Client
+                    simulateMouseDown(clientData.x, clientData.y);
+                }
+            }
+        });
+
+        // Button click event
+        document.querySelector('.vforce').addEventListener('click', function () {
+            // Send button click event to the server
+            socket.emit('buttonClick');
+        });
+
+        // received a message to invert gravity from the server
+        socket.on('invertGravity', () => {
+            // Invert gravity on this client
+            engine.world.gravity.y *= -1;
+        });
+
+    </script>
+</body>
+
+</html>

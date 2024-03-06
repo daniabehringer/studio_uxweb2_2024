@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Basic Socket template</title>
+    <style>
+    </style>
+</head>
+
+<body>
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+ 
+    const socket = io();
+    // received a message from the server
+    socket.on("msg", msg => {
+        console.log(msg);
+    });
+
+    // received a message from another client
+    socket.on("client_msg", msg => {
+        console.log(msg);
+    });
+
+    socket.on("connect", () => {
+        socket.emit("client_msg", "Hello from the client " + socket.id);
+    });
+
+</script>
+
+</html>

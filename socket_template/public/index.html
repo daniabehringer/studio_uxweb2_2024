@@ -5,14 +5,84 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Basic Socket template</title>
     <style>
+        body,
+        html {
+            height: 100%;
+            width: 100%;
+            margin: 0px;
+            touch-action: none; /* disable touch events on the browser itself. We use the touch events for drawing */
+        }
+
+        canvas {
+            height: 100%;
+            width: 100%;
+            display: block;
+        }
     </style>
 </head>
 
 <body>
+    <canvas id="canvas"></canvas>
 </body>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+    let canvas = document.getElementById('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    let ctx = canvas.getContext('2d');
+
+    // drawing styles
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    last_mouse = {
+        x: 0,
+        y: 0
+    };
+
+    let painting = false;
+
+    function startDraw(e) {
+        painting = true;
+        last_mouse.x = e.clientX;
+        last_mouse.y = e.clientY;
+        console.log("start drawing");
+    }
+
+    function endDraw() {
+        painting = false;
+        console.log("end drawing");
+    }
+
+    function draw(e) {
+        if (painting) {
+            console.log("drawing");
+
+            socket.emit("draw", {
+                from: { x: last_mouse.x, y: last_mouse.y },
+                to: { x: e.clientX, y: e.clientY },
+            });
+
+            draw_path(last_mouse, { x: e.clientX, y: e.clientY}, "black");
+            last_mouse.x = e.clientX;
+            last_mouse.y = e.clientY;
+        }
+    }
+
+    function draw_path(from, to, colour) {
+        ctx.strokeStyle = colour;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.closePath();
+        ctx.stroke();
+    } 
+
+    canvas.addEventListener('pointerdown', startDraw);
+    canvas.addEventListener('pointerup', endDraw);
+    canvas.addEventListener('pointermove', draw);
  
+
+
     const socket = io();
     // received a message from the server
     socket.on("msg", msg => {
@@ -24,8 +94,16 @@
         console.log(msg);
     });
 
+    // connection established to the server
     socket.on("connect", () => {
         socket.emit("client_msg", "Hello from the client " + socket.id);
+    });
+
+    // received a draw event from another client
+    socket.on("draw", msg => {
+        console.log("received draw event");
+        console.log(msg);
+        draw_path(msg.from, msg.to, "red");
     });
 
 </script>

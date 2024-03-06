@@ -33,6 +33,11 @@ io.on('connection', (socket) => {
     socket.on('client_msg', (msg) => {
         socket.broadcast.emit('client_msg', msg);
     })
+
+    // forward the message to all clients except the sender
+    socket.on('draw', (msg) => {
+        socket.broadcast.emit('draw', msg);
+    })
 });
 
 
