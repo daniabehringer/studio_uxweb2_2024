@@ -1,13 +1,11 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>gravity.</title>
+    <title>Gravity.</title>
     <style>
-        body,
-        html {
+        body, html {
             height: 100%;
             width: 100%;
             margin: 0;
@@ -40,14 +38,16 @@
 </head>
 
 <body>
-    <button class="vforce">gravity.</button>
+    <button class="vforce">Gravity.</button>
 
     <script src="/socket.io/socket.io.js"></script>
+
     <script>
 
+        // Initialisierung der Socket.io-Verbindung
         const socket = io();
 
-        // module aliases
+        // Alias-Zuweisungen für Matter.js-Module
         var Engine = Matter.Engine,
             Render = Matter.Render,
             Runner = Matter.Runner,
@@ -58,13 +58,14 @@
             Mouse = Matter.Mouse,
             Composites = Matter.Composites;
 
-        // Funktion zum Aktualisieren der Mausposition auf dem aktuellen Client
+        // Funktion zur Aktualisierung der Mausposition auf dem aktuellen Client
         function updateMousePosition(clientId, mouseData) {
             console.log(`Client ${clientId} Mouse Position: x=${mouseData.x}, y=${mouseData.y}`);
         }
 
+        // Funktion zum Simulieren eines Mausklicks
         function simulateMouseDown(x, y) {
-            // Löse ein mousedown-Event auf dem Fenster aus
+            // Erzeugt mousedown-Ereignis
             var event = new MouseEvent('mousedown', {
                 bubbles: true,
                 cancelable: true,
@@ -72,15 +73,15 @@
                 clientY: y
             });
 
-            // Sende Mausklick-Event an den Server
+            // Sendet Mausklick-Ereignis an den Server
             socket.emit('mouseClick', { x, y });
             window.dispatchEvent(event);
         }
 
-        // create an engine
+        // Erzeugt Physik-Engine
         var engine = Engine.create();
 
-        // create a renderer
+        // Erzeugt Renderer
         var render = Render.create({
             element: document.body,
             engine: engine,
@@ -89,11 +90,11 @@
             }
         });
 
-        // Set canvas size to fill the entire screen
+        // Canvasgrösse an Fenstergrösse anpassen
         render.canvas.width = window.innerWidth;
         render.canvas.height = window.innerHeight;
 
-        // create two boxes and a ground
+        // Erzeugt zwei Boxen und Boden
         var ground = Bodies.rectangle(render.canvas.width / 2, render.canvas.height, render.canvas.width, 20, {
             isStatic: true,
             render: {
@@ -102,7 +103,7 @@
             }
         });
 
-        // Create a top ground to prevent balls from flying out
+        // Erzeugt oberen Boden, um das Fortfliegen der Kugeln zu verhindern
         var topGround = Bodies.rectangle(render.canvas.width / 2, 10, render.canvas.width, 20, {
             isStatic: true,
             render: {
@@ -111,7 +112,7 @@
             }
         });
 
-        // Add barriers on the sides
+        // Fügt Barrieren an den Seiten hinzu
         var leftBarrier = Bodies.rectangle(0, render.canvas.height / 2, 10, render.canvas.height, {
             isStatic: true,
             render: {
@@ -127,10 +128,10 @@
             }
         });
 
-
         // Array mit möglichen Farben
         var possibleColors = ['#D9B0C6', '#D99ABC'];
 
+        // Erzeugt Stapelung von Kreisen
         var stack = Composites.stack(0, 0, 15, 10, 10, 10, function (x, y) {
             var randomColor = possibleColors[Math.floor(Math.random() * possibleColors.length)];
 
@@ -142,16 +143,14 @@
                     fillStyle: randomColor,
                     strokeStyle: 'transparent',
                     lineWidth: 2 
-                        }
+                }
             });
         });
 
-
-
-        // add all of the bodies to the world
+        // Fügt alle Körper hinzu
         Composite.add(engine.world, [stack, ground, topGround, leftBarrier, rightBarrier]);
 
-        // add mouse control
+        // Fügt Maussteuerung hinzu
         var mouse = Mouse.create(render.canvas),
             mouseConstraint = MouseConstraint.create(engine, {
                 mouse: mouse,
@@ -159,45 +158,46 @@
                     stiffness: 0.2,
                     render: {
                         visible: true,
-                   
                     }
                 }
             });
 
         Composite.add(engine.world, mouseConstraint);
 
-        // keep the mouse in sync with rendering
+        // Haltet Maus mit Rendern synchron
         render.mouse = mouse;
 
-        // run the renderer
+        // Startet Renderer
         Render.run(render);
 
-        // create runner
+        // Erzeugt Runner
         var runner = Runner.create();
 
-        // run the engine
+        // Startet Physik-Engine
         Runner.run(runner, engine);
 
-        // Button click event
+        // Ereignis beim Klick auf den Button
         document.querySelector('.vforce').addEventListener('click', function () {
-            // Invert gravity on button click
+            // Kehrt die Gravitation um, wenn der Button geklickt wird
             engine.world.gravity.y *= -1;
         });
 
-        // received a message from the server
+        // Empfängt Nachricht vom Server
         socket.on("msg", msg => {
             console.log(msg);
         });
 
-        // received a message from another client
+        // Empfängt Nachricht von anderem Client
         socket.on("client_msg", msg => {
             console.log(msg);
         });
 
+        // Bei erfolgreicher Verbindung zum Server
         socket.on("connect", () => {
-            socket.emit("client_msg", "Hello from the client " + socket.id);
+            socket.emit("client_msg", "Hallo vom Client " + socket.id);
         });
 
+        // Bei Mausbewegung auf dem Client
         document.addEventListener("mousemove", (event) => {
             const mouseData = {
                 x: event.clientX,
@@ -206,29 +206,29 @@
             socket.emit("mousemove", mouseData);
         });
 
-        // receive and apply mouse movement data from other clients
+        // Empfängt und wendet Mausbewegungsdaten von anderen Clients an
         socket.on("mousemove", (clientsData) => {
             for (const clientId in clientsData) {
                 const clientData = clientsData[clientId];
                 if (clientId !== socket.id) {
-                    // Aktualisiere die Mausposition auf anderen Clients
+                    // Aktualisiert Mausposition auf anderen Clients
                     updateMousePosition(clientId, clientData);
 
-                    // Simuliere einen Mausklick auf dem aktuellen Client
+                    // Simuliert Mausklick auf aktuellem Client
                     simulateMouseDown(clientData.x, clientData.y);
                 }
             }
         });
 
-        // Button click event
+        // Ereignis beim Klick auf Button
         document.querySelector('.vforce').addEventListener('click', function () {
-            // Send button click event to the server
+            // Sendet Button-Klick-Ereignis an Server
             socket.emit('buttonClick');
         });
 
-        // received a message to invert gravity from the server
+        // Empfängt Nachricht zur Umkehr der Gravitation vom Server
         socket.on('invertGravity', () => {
-            // Invert gravity on this client
+            // Kehrt Gravitation auf Client um
             engine.world.gravity.y *= -1;
         });
 

@@ -4,65 +4,61 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import { createServer } from 'node:http';
 
-// create a new express web server
+// Erstellt neuen Webserver
 let app = express();
 
-// create a new socket.io server
+// Erstellt neuen Socket.io-Server
 const server = createServer(app);
 const io = new Server(server);
-const clients = {};
+const clients = {};  // Objekt zur Speicherung von Client-Mauspositionen
 
-// get the directory where server.js is located
+// Ermittelt Verzeichnis, in dem sich server.js befindet
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// serve the index.html as starting page
+// Liefert index.html als Startseite aus
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname, "public", "index.html"))
 });
 
-// serve static files in the public folder
+// Liefert statische Dateien im public-Verzeichnis aus
 app.use(express.static('public'));
 
-// a client has connected
+// Verbindung zum Client
 io.on('connection', (socket) => {
-    console.log('a client connected');
+    console.log('Ein Client hat sich verbunden');
 
-    // send a welcome message to the client
-    socket.emit('msg', "welcome from the server");
+    // Sendet Willkommensnachricht an Client
+    socket.emit('msg', "Willkommen vom Server");
 
-    // forward the message to all clients except the sender
+    // Leitet Nachricht an alle Clients ausser Absender weiter
     socket.on('client_msg', (msg) => {
-        io.emit('client_msg', msg); // Broadcast to all clients including the sender
+        io.emit('client_msg', msg);
     });
 
-    // handle mouse movement data
+    // Mausbewegungsdaten
     socket.on('mousemove', (mouseData) => {
-        // update the current client's mouse position
         clients[socket.id] = mouseData;
-
-        // broadcast all clients' mouse positions to all clients
         io.emit('mousemove', clients);
     });
 
-    // handle button click to invert gravity
+    // Klick-Button zum Umkehren der Gravitation
     socket.on('buttonClick', () => {
-        // Invert gravity
+        // Gravitation umkehren
         io.emit('invertGravity');
     });
 
-    // handle client disconnection
+    // Client-Trennung
     socket.on('disconnect', () => {
-        console.log('a client disconnected');
+        console.log('Ein Client hat sich getrennt');
         delete clients[socket.id];
-        // notify other clients about the disconnected client
         io.emit('clientDisconnected', socket.id);
     });
 
-    // send existing clients' mouse positions to the newly connected client
+    // Sendet Mauspositionen vorhandener Clients an neu verbundenen Client
     socket.emit('mousemove', clients);
 });
 
-// start the webserver
-let port = process.env.PORT || 8080;        // set our port
+// Startet Webserver
+let port = process.env.PORT || 8080;        // Port
 server.listen(port);
-console.log('Magic happens on port ' + port);
+console.log('Die Magie passiert auf Port ' + port);
